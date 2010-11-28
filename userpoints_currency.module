@@ -1,0 +1,37 @@
+<?php
+function userpoints_currency_menu() {
+  $items = array();
+
+  $items['user/%/buy-points'] = array(
+    'title' => 'Buy Points', 
+    'description' => '', 
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('userpoints_currency_buy'),
+    'access arguments' => array('buy userpoints'), 
+    'type' => MENU_LOCAL_TASK,
+  );
+  
+  $items['user/%/redeem-points'] = array(
+    'title' => 'Redeem Points', 
+    'description' => '', 
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('userpoints_currency_redeem'),
+    'access arguments' => array('redeem userpoints'), 
+    'type' => MENU_LOCAL_TASK,
+  );  
+
+  $items['user/%/give-points'] = array(
+    'title' => 'Give Points', 
+    'description' => '', 
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('userpoints_currency_give'),
+    'access arguments' => array('give userpoints'), 
+    'type' => MENU_LOCAL_TASK,
+  ); 
+  
+return $items;
+}
+
+function userpoints_currency_buy() {
+
+}

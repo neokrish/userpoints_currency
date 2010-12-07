@@ -3,3 +3,4 @@ name = "Userpoints Currency"
 description = "Buy, sell and donate points."
 core = 6.x
 dependencies[] = userpoints
+dependencies[] = userpoints

@@ -3,35 +3,203 @@ function userpoints_currency_menu() {
   $items = array();
 
   $items['user/%/buy-points'] = array(
-    'title' => 'Buy Points', 
-    'description' => '', 
+    'title' => 'Buy Points',
+    'description' => '',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('userpoints_currency_buy'),
-    'access arguments' => array('buy userpoints'), 
+    'access arguments' => array('buy userpoints'),
     'type' => MENU_LOCAL_TASK,
+    'weight' =>300,
   );
   
   $items['user/%/redeem-points'] = array(
-    'title' => 'Redeem Points', 
-    'description' => '', 
+    'title' => 'Redeem Points',
+    'description' => '',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('userpoints_currency_redeem'),
-    'access arguments' => array('redeem userpoints'), 
+    'access arguments' => array('redeem userpoints'),
     'type' => MENU_LOCAL_TASK,
-  );  
-
-  $items['user/%/give-points'] = array(
-    'title' => 'Give Points', 
-    'description' => '', 
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('userpoints_currency_give'),
-    'access arguments' => array('give userpoints'), 
-    'type' => MENU_LOCAL_TASK,
+    'weight' =>301,
   ); 
-  
 return $items;
 }
 
-function userpoints_currency_buy() {
+function userpoints_currency_buy($form_state) {
 
+  // Display page 2 if $form_state['storage']['page_two'] is set
+  if (isset($form_state['storage']['page_two'])) {
+    return userpoints_currency_buy_page_two($form_state);
+  }
+  // Page 1 is displayed if $form_state['storage']['page_two'] is not set
+  
+  $i=50;
+$option = array();
+$option[0] = 'Select';
+while($i<=500)
+  {
+  $option[] = $i;
+  $i= $i+50;
+  }
+  $form['title'] = array(
+    '#value' => "<h2>Purchase Points</h2>",    
+  );   
+  $form['summary'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Buy Points'),   
+  );    
+  $form['summary']['text'] = array(
+    '#value' => "You can purchase points in multiples of 50. Each bundle of 50 points cost $10.<br/> You can use these points to award authors whose work you love to appreciate.",    
+  );     
+  $form['summary']['user_points_buy'] = array(
+  '#type' => 'select',
+  '#title' => t('Select'),
+  '#default_value' => variable_get('user_points_buy','select'),
+  '#options' => drupal_map_assoc(array_values($option)),
+  '#description' => t('Number of points you wish to purchase.'),
+);
+
+  $form['next'] = array(
+    '#type' => 'submit',
+    '#value' => 'Next >>',
+  );
+  return $form;
+}
+
+// New function created to help make the code more manageable.
+function userpoints_currency_buy_page_two($form_state) {
+  $purchase_points = $form_state['values']['user_points_buy'];
+  $cost = $purchase_points /50;
+  $vars = array(
+    'module' => 'userpoints_currency',
+    'type' => 'Points purchase',
+    'item_name' => 'Purchase User Points',
+    'no_shipping' => TRUE,
+    'no_note' => TRUE,
+    'return' => url('', array('absolute' => TRUE)),
+    'amount' => $cost,
+  );
+ 
+  $form = simple_payments_paypal_payment_form($vars);
+  $form['title'] = array(
+    '#value' => "<h2>Purchase Points</h2>",    
+  );   
+  $form['summary'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Summary of your purchase'),   
+  );
+  $form['summary']['text'] = array(
+    '#value' => "You are purchasing $purchase_points points for $cost USD. Please proceed with the payment process to complete this purchase.",    
+  );   
+  $form['button'] = array(
+    '#type' => 'button',
+    '#value' => t('Pay with PayPal'),
+  );
+
+  return $form;
+}
+
+
+/**
+ * The validate function now validates page 2 as well.
+ */
+function userpoints_currency_buy_validate($form, &$form_state) {
+  // Validate page 2 here
+  if (isset($form_state['storage']['page_two'])) {
+    $color = $form_state['values']['color'];
+    if (!$color) {
+      form_set_error('color', 'Please enter a color.');
+    }
+    return;
+  }
+
+  $user_points_buy = $form_state['values']['user_points_buy'];
+  if ($user_points_buy == 'Select') {
+    form_set_error('user_points_buy', 'Please select the points to buy.');
+  }
+}
+
+/**
+ * Modifies this function so that it will respond appropriately based on
+ * which page was submitted. If the first page is being submitted,
+ * values in the 'storage' array are saved and the form gets
+ * automatically reloaded.
+ *
+ * If page 2 was submitted, we display a message and redirect the
+ * user to another page.
+ */
+function userpoints_currency_buy_submit($form, &$form_state) {
+  // Handle page 1 submissions
+  if ($form_state['clicked_button']['#id'] == 'edit-next') {
+    $form_state['storage']['page_two'] = TRUE; // We set this to determine
+                                               // which elements to display
+                                               // when the page reloads.
+
+    // Values below in the $form_state['storage'] array are saved
+    // to carry forward to subsequent pages in the form.
+    $form_state['storage']['page_one_values'] = $form_state['values'];
+  }
+  // Handle page 2 submissions.
+  else {
+    /*
+     Normally, some code would go here to alter the database with the data
+     collected from the form. Sets a message with drupal_set_message()
+     to validate working code.
+     */
+    $page_one_values = $form_state['storage']['page_one_values'];
+    drupal_set_message(t('The form has been submitted. name="@first @last", year of birth=@year_of_birth',
+      array('@first' => $page_one_values['first'], '@last' => $page_one_values['last'], '@year_of_birth' => $page_one_values['year_of_birth'])));
+
+    if (!empty($page_one_values['first'])) {
+      $first2 = isset($page_one_values['first2']) ? $page_one_values['first2'] : '';
+      $last2  = isset($page_one_values['last2']) ? $page_one_values['last2'] : '';
+      $year2  = isset($page_one_values['year_of_birth2']) ? $page_one_values['year_of_birth2'] : '';
+      drupal_set_message(t('Second name: name="@first @last", year of birth=@year_of_birth',
+        array('@first' => $first2, '@last' => $last2, '@year_of_birth' => $year2)));
+    }
+    drupal_set_message(t('And the favorite color is @color', array('@color' => $form_state['values']['color'])));
+
+    // $form_state['storage'] must be unset for redirection to occur. Otherwise
+    // $form_state['rebuild'] is automatically set and this form will be
+    // rebuilt.
+    unset($form_state['storage']);
+    $form_state['redirect'] = 'node'; // Redirects the user to /node.
+  }
+}
+
+function userpoints_currency_simple_payment_process($payment) {
+
+}
+
+function userpoints_currency_redeem(&$form_state){ 
+$form['summary'] = array(
+  '#value' => t('You are currently having some points. <br />')
+  );  
+$form['redeem_points'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Points to Redeem'),
+  '#default_value' => $text,
+  '#description' => t('Please enter in multiple of hundreds for Ex:- 100, 200, 300...'),
+  '#size' => 12,
+  '#maxlength' => 60,
+  '#required' => TRUE,
+);
+
+$form['redeem'] = array(
+  '#type' => 'submit',
+  '#value' => t('Redeem'),
+);
+return $form;
+}
+
+function userpoints_currency_redeem_validate($form, &$form_state) {
+  //dsm($form_state);
+  $var = $form_state['values']['redeem_points'];
+  if($var%100== 0){
+    drupal_set_message("Your request to redeeming $var has been sent. We will process it soon and notify you when done.");
+  }
+  else
+  {
+    form_set_error('title', 'Please enter into multiple hundreds.');
+
+  }
 }

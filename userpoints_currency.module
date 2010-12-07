@@ -1,4 +1,13 @@
 <?php
+// $Id: 
+
+/**
+ * @file
+ *
+ * userpoints_currency allows purchase and redeeming of points.
+ *
+ * @ingroup userpoints
+ */
 function userpoints_currency_menu() {
   $items = array();
 
@@ -21,6 +30,14 @@ function userpoints_currency_menu() {
     'type' => MENU_LOCAL_TASK,
     'weight' =>301,
   ); 
+  $items['admin/settings/userpoints_currency'] = array(
+    'title' => 'User points Currency',
+    'description' => 'Modify your points here.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('userpoints_currency_settings'),
+    'access arguments' => array('userpoints currency setting'),
+    'type' => MENU_NORMAL_ITEM,
+  );    
 return $items;
 }
 
@@ -32,13 +49,16 @@ function userpoints_currency_buy($form_state) {
   }
   // Page 1 is displayed if $form_state['storage']['page_two'] is not set
   
-  $i=50;
+$upp_starting_value = variable_get('upp_starting_value', 50);
+$upp_ending_value = variable_get('upp_ending_value', 500);
+$upp_points_per_bundle = variable_get('upp_points_per_bundle', 50);
+$cost_per_bundle = variable_get('upp_price_per_bundle', 10);
 $option = array();
-$option[0] = 'Select';
-while($i<=500)
+$option['Select'] = 'Select';
+while($upp_starting_value <= $upp_ending_value)
   {
-  $option[] = $i;
-  $i= $i+50;
+  $option[$upp_starting_value] = $upp_starting_value;
+  $upp_starting_value = $upp_starting_value + $upp_points_per_bundle;
   }
   $form['title'] = array(
     '#value' => "<h2>Purchase Points</h2>",    
@@ -48,7 +68,7 @@ while($i<=500)
     '#title' => t('Buy Points'),   
   );    
   $form['summary']['text'] = array(
-    '#value' => "You can purchase points in multiples of 50. Each bundle of 50 points cost $10.<br/> You can use these points to award authors whose work you love to appreciate.",    
+    '#value' => "You can purchase points in multiples of $upp_points_per_bundle. Each bundle of $upp_points_per_bundle points costs $cost_per_bundle USD.<br/> You can use these points to award authors whose work you love to appreciate.",    
   );     
   $form['summary']['user_points_buy'] = array(
   '#type' => 'select',
@@ -67,8 +87,11 @@ while($i<=500)
 
 // New function created to help make the code more manageable.
 function userpoints_currency_buy_page_two($form_state) {
+  $cost_per_bundle = variable_get('upp_price_per_bundle', 10);
+  $upp_points_per_bundle = variable_get('upp_points_per_bundle', 50);
+  
   $purchase_points = $form_state['values']['user_points_buy'];
-  $cost = $purchase_points /50;
+  $cost = $purchase_points / $upp_points_per_bundle * $cost_per_bundle;
   $vars = array(
     'module' => 'userpoints_currency',
     'type' => 'Points purchase',
@@ -103,66 +126,19 @@ function userpoints_currency_buy_page_two($form_state) {
  * The validate function now validates page 2 as well.
  */
 function userpoints_currency_buy_validate($form, &$form_state) {
-  // Validate page 2 here
-  if (isset($form_state['storage']['page_two'])) {
-    $color = $form_state['values']['color'];
-    if (!$color) {
-      form_set_error('color', 'Please enter a color.');
-    }
-    return;
-  }
-
   $user_points_buy = $form_state['values']['user_points_buy'];
   if ($user_points_buy == 'Select') {
     form_set_error('user_points_buy', 'Please select the points to buy.');
   }
 }
 
-/**
- * Modifies this function so that it will respond appropriately based on
- * which page was submitted. If the first page is being submitted,
- * values in the 'storage' array are saved and the form gets
- * automatically reloaded.
- *
- * If page 2 was submitted, we display a message and redirect the
- * user to another page.
- */
 function userpoints_currency_buy_submit($form, &$form_state) {
-  // Handle page 1 submissions
   if ($form_state['clicked_button']['#id'] == 'edit-next') {
-    $form_state['storage']['page_two'] = TRUE; // We set this to determine
-                                               // which elements to display
-                                               // when the page reloads.
-
-    // Values below in the $form_state['storage'] array are saved
-    // to carry forward to subsequent pages in the form.
+    $form_state['storage']['page_two'] = TRUE; 
     $form_state['storage']['page_one_values'] = $form_state['values'];
   }
-  // Handle page 2 submissions.
   else {
-    /*
-     Normally, some code would go here to alter the database with the data
-     collected from the form. Sets a message with drupal_set_message()
-     to validate working code.
-     */
-    $page_one_values = $form_state['storage']['page_one_values'];
-    drupal_set_message(t('The form has been submitted. name="@first @last", year of birth=@year_of_birth',
-      array('@first' => $page_one_values['first'], '@last' => $page_one_values['last'], '@year_of_birth' => $page_one_values['year_of_birth'])));
-
-    if (!empty($page_one_values['first'])) {
-      $first2 = isset($page_one_values['first2']) ? $page_one_values['first2'] : '';
-      $last2  = isset($page_one_values['last2']) ? $page_one_values['last2'] : '';
-      $year2  = isset($page_one_values['year_of_birth2']) ? $page_one_values['year_of_birth2'] : '';
-      drupal_set_message(t('Second name: name="@first @last", year of birth=@year_of_birth',
-        array('@first' => $first2, '@last' => $last2, '@year_of_birth' => $year2)));
-    }
-    drupal_set_message(t('And the favorite color is @color', array('@color' => $form_state['values']['color'])));
-
-    // $form_state['storage'] must be unset for redirection to occur. Otherwise
-    // $form_state['rebuild'] is automatically set and this form will be
-    // rebuilt.
-    unset($form_state['storage']);
-    $form_state['redirect'] = 'node'; // Redirects the user to /node.
+  // do nothing.
   }
 }
 
@@ -202,4 +178,101 @@ function userpoints_currency_redeem_validate($form, &$form_state) {
     form_set_error('title', 'Please enter into multiple hundreds.');
 
   }
+}
+
+function userpoints_currency_settings(&$form_state){
+
+$form['buy_points_settings'] = array(
+  '#type' => 'fieldset',
+  '#title' => t('Buy Points in Bundle settings'),
+  '#collapsible' => TRUE,
+  '#collapsed' => FALSE,
+);
+
+
+$form['buy_points_settings']['upp_starting_value'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Starting Points'),
+  '#description' => t('Starting Points minimum with 50'),
+  '#default_value' => variable_get('upp_starting_value','0'),
+  '#size' => 12,
+  '#maxlength' => 60,
+  '#required' => TRUE,
+);
+
+$form['buy_points_settings']['upp_ending_value'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Ending Points'),
+  '#description' => t('Ending Points minimum with 500'),
+  '#default_value' => variable_get('upp_ending_value','0'),
+  '#size' => 12,
+  '#maxlength' => 60,
+  '#required' => TRUE,
+);
+
+$form['buy_points_settings']['upp_points_per_bundle'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Points per Bundle'),
+  '#description' => t('Enter your points per Bundle'),
+  '#default_value' => variable_get('upp_points_per_bundle','0'),
+  '#size' => 12,
+  '#maxlength' => 60,
+  '#required' => TRUE,
+);
+
+$form['buy_points_settings']['upp_price_per_bundle'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Price per Bundle'),
+  '#description' => t('Enter your price per Bundle'),
+  '#default_value' => variable_get('upp_price_per_bundle','0'),
+  '#size' => 12,
+  '#maxlength' => 60,
+  '#required' => TRUE,
+);  
+/*
+$form['Buy Arbitary points'] = array(
+  '#type' => 'fieldset',
+  '#title' => t('Buy Arbitary points settings'),
+  '#weight' => 6,
+  '#collapsible' => TRUE,
+  '#collapsed' => FALSE,
+);
+
+$form['Buy Arbitary points']['Price Per Point'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Price per Bundle'),
+  '#description' => t('Enter the price per Point'),
+  '#default_value' => $node->title,
+  '#size' => 12,
+  '#maxlength' => 60,
+  '#required' => TRUE,
+); 
+
+$form['Buy Arbitary points']['minimum purchase point'] = array(
+  '#type' => 'textfield',
+  '#title' => t('Minimum Purchase Point'),
+  '#description' => t('Enter the minimum purchase points.'),
+  '#default_value' => $node->title,
+  '#size' => 12,
+  '#maxlength' => 60,
+  '#required' => TRUE,
+); 
+
+$form['mode'] = array(
+  '#type' => 'fieldset',
+  '#title' => t('Modify by any of one'),
+  '#weight' => 7,
+  '#collapsible' => TRUE,
+  '#collapsed' => FALSE,
+);
+
+$form['mode']['modify by any of one group'] = array(
+  '#type' => 'radios',
+  '#title' => t('Select any of one'),
+  '#default_value' => '',
+  '#options' => array(t('Buy in Bundle'), t('Buy Arbitrary Points')),
+);
+
+*/
+return system_settings_form($form);
 }
